@@ -3,13 +3,19 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import { clerkMiddleware } from "@clerk/express";
 import { initKeepAliveCron } from "./lib/cron.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// backend/src 기준 루트의 frontend/dist 경로
+const distPath = path.resolve(__dirname, "../../frontend/dist");
+
 // Load environment variables (supports root and backend folder execution)
-const envPath = fs.existsSync(path.resolve("backend/.env"))
-  ? path.resolve("backend/.env")
+const envPath = fs.existsSync(path.resolve(__dirname, "../.env"))
+  ? path.resolve(__dirname, "../.env")
   : path.resolve(".env");
 dotenv.config({ path: envPath, quiet: true });
 
@@ -28,9 +34,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // 1. origin이 없는 경우 (동일 출처 요청, 모바일 앱 네이티브 요청, Postman, Webhook 등)
-      // 2. 개발 환경(development)인 경우 로컬 접속 편의 허용
-      // 3. 허용 목록(allowedOrigins)에 포함된 도메인인 경우
       if (
         !origin ||
         allowedOrigins.includes(origin) ||
@@ -44,6 +47,12 @@ app.use(
     credentials: true,
   }),
 );
+
+// Production: Serve static assets directly before general middleware
+if (process.env.NODE_ENV === "production" && fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
+
 app.use(express.json());
 app.use(clerkMiddleware());
 
@@ -55,18 +64,20 @@ app.get("/health", (_, res) => {
   });
 });
 
-// Production: Serve frontend static build files
-if (process.env.NODE_ENV === "production") {
-  const distPath = fs.existsSync(path.resolve("frontend/dist"))
-    ? path.resolve("frontend/dist")
-    : path.resolve("../frontend/dist");
-
-  app.use(express.static(distPath));
-
-  app.get(/.*/, (_, res) => {
+// Production: SPA Fallback (Serve index.html for all client-side routes)
+if (process.env.NODE_ENV === "production" && fs.existsSync(distPath)) {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+  res.status(500).json({
+    error: err.message || "Internal Server Error",
+  });
+});
 
 connectDB()
   .then(() => {
