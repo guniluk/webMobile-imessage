@@ -1,5 +1,20 @@
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/react";
+
 const App = () => {
-  return <div>App exe</div>;
+  return (
+    <div>
+      <h1>App excute</h1>
+      <header>
+        <Show when="signed-out">
+          <SignInButton mode="modal" />
+          <SignUpButton mode="modal" />
+        </Show>
+        <Show when="signed-in">
+          <UserButton />
+        </Show>
+      </header>
+    </div>
+  );
 };
 
 export default App;

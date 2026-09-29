@@ -11,13 +11,21 @@ const app = express();
 const PORT = process.env.PORT;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(clerkMiddleware());
 
 // Test route
-app.get("/", (req, res) => {
-  res.send("iMessage Backend is running...");
+app.get("/health", (_, res) => {
+  res.status(200).json({
+    message: "iMessage Backend is healthy...",
+    timestamp: new Date().toLocaleString(),
+  });
 });
 
 connectDB()
