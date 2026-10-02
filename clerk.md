@@ -1,6 +1,6 @@
 # 🚀 Clerk 완전 정복 가이드 (Frontend, Backend & MongoDB Webhook 연동)
 
-이 가이드는 **Clerk** 인증 서비스를 React(Frontend), Express(Backend), 그리고 **MongoDB(Mongoose)**와 완벽하게 연동하는 방법을 단계별로 쉽게 정리한 문서입니다.
+이 가이드는 **Clerk** 인증 서비스를 React(Frontend), Express(Backend), 그리고 **MongoDB(Mongoose)**와 완벽하게 연동하는 방법을 단계별로 알기 쉽게 정리한 문서입니다.
 
 ---
 
@@ -9,7 +9,7 @@
 2. [Frontend (React + Vite) 연동](#2-frontend-react--vite-연동)
 3. [Backend (Express) 설정 및 API 보호](#3-backend-express-설정-및-api-보호)
 4. [Clerk Webhook과 MongoDB 동기화 (가입/수정/삭제)](#4-clerk-webhook과-mongodb-동기화-가입수정삭제)
-5. [로컬 환경 Webhook 테스트 방법](#5-로컬-환경-webhook-테스트-방법)
+5. [로컬 및 배포 환경 Webhook 테스트 방법](#5-로컬-및-배포-환경-webhook-테스트-방법)
 
 ---
 
@@ -17,9 +17,9 @@
 
 1. [Clerk 공식 홈페이지](https://clerk.com/)에 접속하여 회원가입/로그인합니다.
 2. 새 애플리케이션 생성 (**Add application**):
-   - 애플리케이션 이름을 입력합니다.
-   - 로그인 방식(Email, Google, GitHub 등)을 선택하고 **Create application**을 누릅니다.
-3. 좌측 메뉴의 **API Keys**로 이동하여 다음 키들을 확인합니다:
+   - 애플리케이션 이름을 입력합니다 (예: `iMessage Web & Mobile`).
+   - 로그인 방식(Email, Google, GitHub 등)을 선택하고 **Create application**을 클릭합니다.
+3. 좌측 메뉴의 **Configure ➡️ Developers ➡️ API Keys**로 이동하여 다음 키들을 복사합니다:
    - `Publishable key` (Frontend용, `pk_test_...`)
    - `Secret key` (Backend용, `sk_test_...`)
 
@@ -28,11 +28,11 @@
 ## 2. Frontend (React + Vite) 연동
 
 ### Step 1: 라이브러리 설치
-`frontend` 폴더에서 `@clerk/clerk-react`를 설치합니다.
+`frontend` 폴더에서 최신 `@clerk/react`를 설치합니다.
 
 ```bash
 cd frontend
-npm install @clerk/clerk-react
+npm install @clerk/react
 ```
 
 ### Step 2: 환경 변수 설정
@@ -47,94 +47,83 @@ React 애플리케이션의 최상단을 `ClerkProvider`로 감싸줍니다.
 
 ```jsx
 // frontend/src/main.jsx
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
-import './index.css'
-import { ClerkProvider } from '@clerk/clerk-react'
+import { createRoot } from "react-dom/client";
+import { ClerkProvider } from "@clerk/react";
+import App from "./App.jsx";
+import "./index.css";
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
-  throw new Error('Missing Publishable Key: VITE_CLERK_PUBLISHABLE_KEY is not defined.')
+  throw new Error("Missing Publishable Key: VITE_CLERK_PUBLISHABLE_KEY is not defined.");
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-      <App />
-    </ClerkProvider>
-  </React.StrictMode>,
-)
+createRoot(document.getElementById("root")).render(
+  <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+    <App />
+  </ClerkProvider>,
+);
 ```
 
 ### Step 4: UI 컴포넌트 및 인증 상태 사용 예시
-Clerk이 제공하는 기본 UI 컴포넌트를 사용하면 간편하게 로그인/로그아웃/프로필 버튼을 구현할 수 있습니다.
+`@clerk/react`의 `<Show>`, `<SignInButton>`, `<SignUpButton>`, `<UserButton>`, `useAuth`, `useUser` 등을 활용합니다.
 
 ```jsx
 // frontend/src/App.jsx 예시
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-  useUser,
-  useAuth
-} from '@clerk/clerk-react'
+import { Show, SignInButton, SignUpButton, UserButton, useUser, useAuth } from "@clerk/react";
 
 export default function App() {
-  const { user, isLoaded } = useUser()
-  const { getToken } = useAuth()
+  const { user } = useUser();
+  const { getToken } = useAuth();
 
-  // Backend API 호출 시 Clerk 인증 토큰 전달 예시
+  // Backend 인증 API 호출 예시
   const fetchProtectedData = async () => {
-    const token = await getToken()
-    const res = await fetch('http://localhost:5001/api/protected', {
+    const token = await getToken();
+    const res = await fetch("/api/protected", {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    const data = await res.json()
-    console.log(data)
-  }
-
-  if (!isLoaded) return <div>로딩 중...</div>
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await res.json();
+    console.log("Protected API Data:", data);
+  };
 
   return (
     <div className="p-4">
       <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">내 채팅 앱</h1>
-        <div>
-          {/* 로그아웃 상태일 때 */}
-          <SignedOut>
-            <div className="space-x-2">
-              <SignInButton mode="modal">
-                <button className="px-4 py-2 bg-blue-500 text-white rounded">로그인</button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <button className="px-4 py-2 bg-green-500 text-white rounded">회원가입</button>
-              </SignUpButton>
-            </div>
-          </SignedOut>
+        <h1 className="text-2xl font-bold">iMessage Web</h1>
+        
+        {/* 로그아웃 상태일 때 */}
+        <Show when="signed-out">
+          <div className="space-x-2">
+            <SignInButton mode="modal">
+              <button className="px-4 py-2 bg-blue-500 text-white rounded">로그인</button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="px-4 py-2 bg-green-500 text-white rounded">회원가입</button>
+            </SignUpButton>
+          </div>
+        </Show>
 
-          {/* 로그인 상태일 때 */}
-          <SignedIn>
-            <div className="flex items-center gap-3">
-              <span>환영합니다, {user?.fullName || user?.firstName}님!</span>
-              <UserButton />
-            </div>
-          </SignedIn>
-        </div>
+        {/* 로그인 상태일 때 */}
+        <Show when="signed-in">
+          <div className="flex items-center gap-3">
+            <span>환영합니다, {user?.fullName || user?.firstName}님!</span>
+            <UserButton />
+          </div>
+        </Show>
       </header>
 
-      <SignedIn>
-        <button onClick={fetchProtectedData} className="px-3 py-1 bg-gray-700 text-white rounded">
+      <Show when="signed-in">
+        <button
+          onClick={fetchProtectedData}
+          className="px-3 py-1 bg-gray-700 text-white rounded"
+        >
           인증된 백엔드 데이터 요청
         </button>
-      </SignedIn>
+      </Show>
     </div>
-  )
+  );
 }
 ```
 
@@ -143,7 +132,7 @@ export default function App() {
 ## 3. Backend (Express) 설정 및 API 보호
 
 ### Step 1: 라이브러리 설치
-`backend` 폴더에서 Clerk SDK 및 Webhook 검증 라이브러리 `svix`를 설치합니다.
+`backend` 폴더에서 `@clerk/express`와 Webhook 검증 라이브러리 `svix`를 설치합니다.
 
 ```bash
 cd backend
@@ -151,13 +140,13 @@ npm install @clerk/express svix
 ```
 
 ### Step 2: 환경 변수 설정
-`backend/.env` 파일에 Clerk Secret Key 및 Webhook Secret을 추가합니다.
+`backend/.env` 파일에 다음 환경 변수들을 등록합니다:
 
 ```env
-PORT=5001
-MONGO_URI=mongodb+srv://...
-CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
+PORT=3000
+MONGODB_URI=mongodb+srv://...
 CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
 CLERK_WEBHOOK_SECRET=whsec_your_webhook_signing_secret
 ```
 
@@ -165,38 +154,26 @@ CLERK_WEBHOOK_SECRET=whsec_your_webhook_signing_secret
 `@clerk/express`의 `clerkMiddleware()`와 `requireAuth()`를 사용합니다.
 
 ```javascript
-// backend/src/server.js
-import express from 'express'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import { clerkMiddleware, requireAuth } from '@clerk/express'
-import { connectDB } from './lib/db.js'
-import webhookRoutes from './routes/webhook.route.js'
+// backend/src/server.js 예시
+import express from "express";
+import dotenv from "dotenv";
+import { clerkMiddleware, requireAuth } from "@clerk/express";
+import webhookRoutes from "./routes/webhook.route.js";
 
-dotenv.config()
+dotenv.config();
+const app = express();
 
-const app = express()
-const PORT = process.env.PORT || 5001
+// ⚠️ Webhook 라우트는 JSON 파서 이전에 등록 (svix 검증을 위한 raw body 처리)
+app.use("/api/webhooks", webhookRoutes);
 
-// ⚠️ 주의: Webhook 라우트는 반드시 raw body(또는 express.raw) 처리가 필요할 수 있으므로 
-// express.json() 미들웨어 이전에 등록하거나 webhook route 자체에서 raw body를 처리합니다.
-app.use('/api/webhooks', webhookRoutes)
-
-app.use(cors())
-app.use(express.json()) // 일반 API용 JSON 파서
-app.use(clerkMiddleware()) // Clerk 인증 상태를 req.auth에 주입
+app.use(express.json());
+app.use(clerkMiddleware()); // req.auth 객체 주입
 
 // 보호된 API 엔드포인트 예시
-app.get('/api/protected', requireAuth(), (req, res) => {
-  // req.auth 객체에서 userId(Clerk ID) 확인 가능
-  const { userId } = req.auth
-  res.json({ message: '인증된 사용자입니다.', userId })
-})
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-  connectDB()
-})
+app.get("/api/protected", requireAuth(), (req, res) => {
+  const { userId } = req.auth; // Clerk User ID (예: 'user_2xyz...')
+  res.json({ message: "인증 성공", userId });
+});
 ```
 
 ---
@@ -205,11 +182,8 @@ app.listen(PORT, () => {
 
 사용자가 Clerk을 통해 가입, 정보 수정, 계정 삭제를 할 때 우리 MongoDB 데이터베이스의 `User` 컬렉션과 자동으로 동기화되도록 Webhook을 구축합니다.
 
-### Step 1: MongoDB User 모델 확인
-이미 정의된 `User` 모델(`backend/src/models/user.model.js`) 구조:
-
+### Step 1: MongoDB User 모델 (`backend/src/models/user.model.js`)
 ```javascript
-// backend/src/models/user.model.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -257,147 +231,133 @@ const User = mongoose.model("User", userSchema);
 export default User;
 ```
 
-### Step 2: Webhook 핸들러 컨트롤러 작성
-`svix`를 사용하여 Clerk에서 전송된 서명(Signature)을 검증하고, 이벤트에 따라 MongoDB CRUD를 수행합니다.
-
+### Step 2: Webhook 컨트롤러 (`backend/src/controllers/webhook.controller.js`)
 ```javascript
-// backend/src/controllers/webhook.controller.js
-import { Webhook } from 'svix'
-import User from '../models/user.model.js'
+import { Webhook } from "svix";
+import User from "../models/user.model.js";
 
 export const handleClerkWebhook = async (req, res) => {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error('CLERK_WEBHOOK_SECRET 환경 변수가 누락되었습니다.')
-    return res.status(500).json({ error: 'Webhook secret is not configured' })
+    console.error("CLERK_WEBHOOK_SECRET 환경 변수가 누락되었습니다.");
+    return res.status(500).json({ error: "Webhook secret is not configured" });
   }
 
-  // 1. 헤더 추출
-  const svix_id = req.headers['svix-id']
-  const svix_timestamp = req.headers['svix-timestamp']
-  const svix_signature = req.headers['svix-signature']
+  // 1. Svix 헤더 추출
+  const svix_id = req.headers["svix-id"];
+  const svix_timestamp = req.headers["svix-timestamp"];
+  const svix_signature = req.headers["svix-signature"];
 
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return res.status(400).json({ error: 'Svix 헤더가 존재하지 않습니다.' })
+    return res.status(400).json({ error: "Svix 헤더가 존재하지 않습니다." });
   }
 
-  // 2. 서명 검증 (body는 문자열 형태여야 함)
-  const payload = req.body.toString()
-  const wh = new Webhook(WEBHOOK_SECRET)
+  // 2. 서명 검증 (body는 raw string 형태)
+  const payload = req.body.toString();
+  const wh = new Webhook(WEBHOOK_SECRET);
 
-  let evt
+  let evt;
   try {
     evt = wh.verify(payload, {
-      'svix-id': svix_id,
-      'svix-timestamp': svix_timestamp,
-      'svix-signature': svix_signature,
-    })
+      "svix-id": svix_id,
+      "svix-timestamp": svix_timestamp,
+      "svix-signature": svix_signature,
+    });
   } catch (err) {
-    console.error('Webhook 검증 실패:', err.message)
-    return res.status(400).json({ error: 'Webhook verification failed' })
+    console.error("Webhook 서명 검증 실패:", err.message);
+    return res.status(400).json({ error: "Webhook verification failed" });
   }
 
-  // 3. 이벤트 타입에 따른 DB 동기화
-  const eventType = evt.type
-  const { id: clerkId, email_addresses, first_name, last_name, image_url } = evt.data
+  // 3. 이벤트별 MongoDB 동기화
+  const eventType = evt.type;
+  const { id: clerkId, email_addresses, first_name, last_name, image_url } = evt.data;
 
   try {
     // 🟢 1) 회원가입 (user.created)
-    if (eventType === 'user.created') {
-      const email = email_addresses?.[0]?.email_address
-      const fullName = `${first_name || ''} ${last_name || ''}`.trim() || 'Anonymous'
+    if (eventType === "user.created") {
+      const email = email_addresses?.[0]?.email_address;
+      const fullName = `${first_name || ""} ${last_name || ""}`.trim() || "Anonymous";
 
       const newUser = await User.create({
         clerkId,
         email,
         fullName,
-        profilePic: image_url || '',
-      })
+        profilePic: image_url || "",
+      });
 
-      console.log('✅ 신규 사용자 MongoDB 저장 완료:', newUser._id)
-      return res.status(201).json({ success: true, user: newUser })
+      console.log("✅ 신규 사용자 MongoDB 저장 완료:", newUser._id);
+      return res.status(201).json({ success: true, user: newUser });
     }
 
     // 🟡 2) 회원 정보 수정 (user.updated)
-    if (eventType === 'user.updated') {
-      const email = email_addresses?.[0]?.email_address
-      const fullName = `${first_name || ''} ${last_name || ''}`.trim() || 'Anonymous'
+    if (eventType === "user.updated") {
+      const email = email_addresses?.[0]?.email_address;
+      const fullName = `${first_name || ""} ${last_name || ""}`.trim() || "Anonymous";
 
       const updatedUser = await User.findOneAndUpdate(
         { clerkId },
         {
           email,
           fullName,
-          profilePic: image_url || '',
+          profilePic: image_url || "",
         },
         { new: true }
-      )
+      );
 
-      console.log('🔄 사용자 정보 수정 완료:', updatedUser?._id)
-      return res.status(200).json({ success: true, user: updatedUser })
+      console.log("🔄 사용자 정보 수정 완료:", updatedUser?._id);
+      return res.status(200).json({ success: true, user: updatedUser });
     }
 
-    // 🔴 3) 회원 탈퇴/삭제 (user.deleted)
-    if (eventType === 'user.deleted') {
-      await User.findOneAndDelete({ clerkId })
-      console.log(`🗑️ 사용자 삭제 완료 (ClerkId: ${clerkId})`)
-      return res.status(200).json({ success: true, message: 'User deleted' })
+    // 🔴 3) 회원 탈퇴 (user.deleted)
+    if (eventType === "user.deleted") {
+      await User.findOneAndDelete({ clerkId });
+      console.log(`🗑️ 사용자 삭제 완료 (ClerkId: ${clerkId})`);
+      return res.status(200).json({ success: true, message: "User deleted" });
     }
 
-    return res.status(200).json({ received: true })
+    return res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook 처리 중 DB 에러:', error)
-    return res.status(500).json({ error: 'Database sync error' })
+    console.error("Webhook 처리 중 DB 에러:", error);
+    return res.status(500).json({ error: "Database sync error" });
   }
-}
+};
 ```
 
-### Step 3: Webhook 라우트 생성
-Webhook의 서명 검증을 위해 반드시 `bodyParser.raw({ type: 'application/json' })` 형태로 본문을 전달해야 합니다.
-
+### Step 3: Webhook 라우트 (`backend/src/routes/webhook.route.js`)
 ```javascript
-// backend/src/routes/webhook.route.js
-import express from 'express'
-import bodyParser from 'body-parser'
-import { handleClerkWebhook } from '../controllers/webhook.controller.js'
+import express from "express";
+import bodyParser from "body-parser";
+import { handleClerkWebhook } from "../controllers/webhook.controller.js";
 
-const router = express.Router()
+const router = express.Router();
 
-// Webhook 엔드포인트: raw body 필요
+// Webhook 엔드포인트 (raw body 파서 적용)
 router.post(
-  '/',
-  bodyParser.raw({ type: 'application/json' }),
+  "/",
+  bodyParser.raw({ type: "application/json" }),
   handleClerkWebhook
-)
+);
 
-export default router
+export default router;
 ```
 
 ---
 
-## 5. 로컬 환경 Webhook 테스트 방법
+## 5. 로컬 및 배포 환경 Webhook 테스트 방법
 
-Clerk은 로컬(localhost)로 바로 요청을 보낼 수 없으므로, 로컬 개발 중에는 **ngrok** 또는 **localtunnel**을 사용하여 공용 URL을 열어주어야 합니다.
+### 1) 로컬 개발 테스트 (ngrok 사용)
+1. 터미널에서 로컬 포트로 ngrok 터널을 엽니다:
+   ```bash
+   npx ngrok http 3000
+   ```
+2. 생성된 `https://xxxx.ngrok-free.app` 주소를 복사합니다.
+3. Clerk Dashboard ➡️ **Webhooks ➡️ Add Endpoint** 클릭
+4. Endpoint URL에 `https://xxxx.ngrok-free.app/api/webhooks` 입력
+5. 구독 이벤트 선택: `user.created`, `user.updated`, `user.deleted`
+6. 생성 후 발급된 **Signing Secret**(`whsec_...`)을 복사하여 `backend/.env`의 `CLERK_WEBHOOK_SECRET`에 입력합니다.
 
-### Step 1: ngrok 터널 열기
-```bash
-npx ngrok http 5001
-```
-터널이 열리면 생성된 URL(예: `https://abcd-1234.ngrok-free.app`)을 복사합니다.
-
-### Step 2: Clerk Dashboard에 Webhook 등록
-1. Clerk Dashboard -> 좌측 메뉴의 **Webhooks** 클릭
-2. **Add Endpoint** 클릭
-3. **Endpoint URL**에 `https://abcd-1234.ngrok-free.app/api/webhooks` 입력
-4. **Subscribe to events**에서 다음 이벤트들을 선택:
-   - `user.created`
-   - `user.updated`
-   - `user.deleted`
-5. **Create** 버튼 클릭 후 생성된 화면에서 **Signing Secret**(`whsec_...`) 값을 복사합니다.
-6. 복사한 값을 `backend/.env`의 `CLERK_WEBHOOK_SECRET`에 붙여넣습니다.
-
-### Step 3: 테스트 및 동기화 확인
-1. Frontend에서 새 사용자로 회원가입하거나 Clerk Dashboard의 **Testing** 탭에서 가입 이벤트를 트리거합니다.
-2. 백엔드 콘솔에 `✅ 신규 사용자 MongoDB 저장 완료` 메시지가 출력되는지 확인합니다.
-3. MongoDB Compass 또는 Atlas에서 `users` 컬렉션에 데이터가 정상적으로 동기화되었는지 확인합니다.
+### 2) Render.com 프로덕션 Webhook 등록
+1. 배포된 Render 서비스 주소(`https://webmobile-imessage.onrender.com/api/webhooks`)를 Clerk Dashboard에 엔드포인트로 등록합니다.
+2. 발급된 **Signing Secret**을 Render.com 대시보드의 **Environment Variables** (`CLERK_WEBHOOK_SECRET`)에 추가합니다.
+3. 실제 회원가입/수정 시 MongoDB Atlas에 실시간으로 데이터가 동기화되는 것을 확인합니다.
