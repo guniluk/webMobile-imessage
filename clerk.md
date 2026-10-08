@@ -298,15 +298,16 @@ router.post('/', async (req, res) => {
     });
 
     const evt = await verifyWebhook(request, { signingSecret });
+    console.log(`[Clerk Webhook] Received event: ${evt.type}`);
 
     // 🟢 회원가입(user.created) 및 회원정보 수정(user.updated) 처리
     if (evt.type === 'user.created' || evt.type === 'user.updated') {
       const u = evt.data;
       const email =
         u.email_addresses?.find((e) => e.id === u.primary_email_address_id)
-          ?.email_address ?? u.email_addresses[0].email_address;
+          ?.email_address ?? u.email_addresses?.[0]?.email_address;
       if (!email) {
-        console.warn('User has no email address', u.id);
+        console.warn(`[Clerk Webhook] User has no email address (Clerk ID: ${u.id})`);
         return res.status(400).json({ error: 'User has no email address' });
       }
       const fullName =
@@ -314,10 +315,10 @@ router.post('/', async (req, res) => {
         u.username ||
         email.split('@')[0];
 
-      const profilePic = u.image_url;
+      const profilePic = u.image_url || '';
 
       // Upsert를 통해 race condition 없이 안전하게 MongoDB에 저장/업데이트
-      await User.findOneAndUpdate(
+      const updatedUser = await User.findOneAndUpdate(
         { clerkId: u.id },
         {
           clerkId: u.id,
@@ -325,19 +326,23 @@ router.post('/', async (req, res) => {
           fullName,
           profilePic,
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
+      console.log(`[Clerk Webhook] ✅ MongoDB sync success for user: ${updatedUser._id} (${fullName})`);
     }
 
     // 🔴 회원 탈퇴(user.deleted) 처리
     if (evt.type === 'user.deleted') {
-      if (evt.data.id) await User.deleteOne({ clerkId: evt.data.id });
+      if (evt.data.id) {
+        await User.deleteOne({ clerkId: evt.data.id });
+        console.log(`[Clerk Webhook] 🗑️ User deleted from MongoDB: ${evt.data.id}`);
+      }
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook verification failed:', error);
-    res.status(400).json({ message: 'Webhook verification failed' });
+    console.error('[Clerk Webhook] ❌ Webhook error:', error.message || error);
+    res.status(400).json({ message: 'Webhook verification failed', error: error.message });
   }
 });
 
@@ -349,7 +354,7 @@ export default router;
 ### Step 3: Server에 Webhook 라우트 연결 (`backend/src/server.js`)
 
 ⚠️ **핵심 구현 원칙**:
-Webhook 검증은 원본 바이트(Raw Buffer)를 기준으로 서명을 계산하므로, `/api/webhooks/clerk` 라우트는 **반드시 `express.raw({ type: 'application/json' })` 미들웨어와 함께 `express.json()`보다 앞선 줄에 배치**해야 합니다.
+Webhook 검증은 원본 바이트(Raw Buffer)를 기준으로 서명을 계산하므로, `/api/webhooks/clerk` 라우트는 **반드시 `express.raw({ type: '*/*' })` 미들웨어와 함께 `express.json()`보다 앞선 줄에 배치**해야 합니다.
 
 ```javascript
 // backend/src/server.js (주요 Webhook 설정 발췌)
@@ -370,7 +375,7 @@ app.use(cors({ origin: true, credentials: true }));
 // ⚠️ 1. Webhook 라우트는 express.json()보다 먼저 raw body 파서와 함께 등록
 app.use(
   '/api/webhooks/clerk',
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: '*/*' }),
   clerkWebhookHandler,
 );
 

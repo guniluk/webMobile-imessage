@@ -72,7 +72,7 @@ app.use(
 
 app.use(
   '/api/webhooks/clerk',
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: '*/*' }),
   clerkWebhookHandler,
 );
 

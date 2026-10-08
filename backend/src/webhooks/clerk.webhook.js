@@ -26,14 +26,15 @@ router.post('/', async (req, res) => {
     });
 
     const evt = await verifyWebhook(request, { signingSecret });
+    console.log(`[Clerk Webhook] Received event: ${evt.type}`);
 
     if (evt.type === 'user.created' || evt.type === 'user.updated') {
       const u = evt.data;
       const email =
         u.email_addresses?.find((e) => e.id === u.primary_email_address_id)
-          ?.email_address ?? u.email_addresses[0].email_address;
+          ?.email_address ?? u.email_addresses?.[0]?.email_address;
       if (!email) {
-        console.warn('User has no email address', u.id);
+        console.warn(`[Clerk Webhook] User has no email address (Clerk ID: ${u.id})`);
         return res.status(400).json({ error: 'User has no email address' });
       }
       const fullName =
@@ -41,9 +42,9 @@ router.post('/', async (req, res) => {
         u.username ||
         email.split('@')[0];
 
-      const profilePic = u.image_url;
+      const profilePic = u.image_url || '';
 
-      await User.findOneAndUpdate(
+      const updatedUser = await User.findOneAndUpdate(
         { clerkId: u.id },
         {
           clerkId: u.id,
@@ -51,18 +52,22 @@ router.post('/', async (req, res) => {
           fullName,
           profilePic,
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
+      console.log(`[Clerk Webhook] ✅ MongoDB sync success for user: ${updatedUser._id} (${fullName})`);
     }
 
     if (evt.type === 'user.deleted') {
-      if (evt.data.id) await User.deleteOne({ clerkId: evt.data.id });
+      if (evt.data.id) {
+        await User.deleteOne({ clerkId: evt.data.id });
+        console.log(`[Clerk Webhook] 🗑️ User deleted from MongoDB: ${evt.data.id}`);
+      }
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook verification failed:', error);
-    res.status(400).json({ message: 'Webhook verification failed' });
+    console.error('[Clerk Webhook] ❌ Webhook error:', error.message || error);
+    res.status(400).json({ message: 'Webhook verification failed', error: error.message });
   }
 });
 
