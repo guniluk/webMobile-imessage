@@ -1,0 +1,19 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "onrender",
+    "clerk",
+    "nativewind",
+    "zustand",
+    "svix",
+    "whsec",
+    "ngrok",
+    "webmobile"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    ".git",
+    "package-lock.json"
+  ]
+}

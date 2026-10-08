@@ -67,6 +67,7 @@ git push origin main
 - `MONGODB_URI`: MongoDB Atlas 연결 URL
 - `CLERK_PUBLISHABLE_KEY`: Clerk 공개 키 (`pk_test_...`)
 - `CLERK_SECRET_KEY`: Clerk 비밀 키 (`sk_test_...`)
+- `CLERK_WEBHOOK_SECRET`: Clerk Webhook 서명 검증 키 (`whsec_...`)
 - `VITE_CLERK_PUBLISHABLE_KEY`: 프론트엔드 빌드 시 주입될 Clerk 공개 키 (`pk_test_...`)
 - `CLOUDINARY_CLOUD_NAME`: Cloudinary 클라우드 이름
 - `CLOUDINARY_API_KEY`: Cloudinary API 키
@@ -285,10 +286,11 @@ connectDB()
 | `MONGODB_URI` | `mongodb+srv://...` | MongoDB Atlas 연결 문자열 |
 | `CLERK_PUBLISHABLE_KEY` | `pk_test_...` | Clerk 공개 키 |
 | `CLERK_SECRET_KEY` | `sk_test_...` | Clerk 비밀 키 |
+| `CLERK_WEBHOOK_SECRET` | `whsec_...` | Clerk Webhook 서명 검증 키 (Clerk 대시보드 발급) |
 | `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_...` | 프론트엔드 React Vite 빌드용 공개 키 |
-| `CLOUDINARY_CLOUD_NAME` | `dbfsq5eup` | Cloudinary 클라우드 이름 |
-| `CLOUDINARY_API_KEY` | `574263248134532` | Cloudinary API 키 |
-| `CLOUDINARY_API_SECRET` | `teixqG8ZWmn7wnWkrqUpIb4Op1M` | Cloudinary API 시크릿 |
+| `CLOUDINARY_CLOUD_NAME` | `your_cloud_name` | Cloudinary 클라우드 이름 |
+| `CLOUDINARY_API_KEY` | `your_api_key` | Cloudinary API 키 |
+| `CLOUDINARY_API_SECRET` | `your_api_secret` | Cloudinary API 시크릿 |
 
 > 💡 **주의**: `PORT` 환경 변수는 Render.com이 자체 포트를 자동 주입하므로 추가하지 않아도 됩니다.
 

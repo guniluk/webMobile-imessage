@@ -1,9 +1,9 @@
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/react";
+import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/react';
 
 const App = () => {
   return (
     <div>
-      <h1>App excute</h1>
+      <h1>App execute</h1>
       <header>
         <Show when="signed-out">
           <SignInButton mode="modal" />
