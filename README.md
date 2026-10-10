@@ -90,5 +90,5 @@ npm start
 
 자세한 배포 및 연동 방법은 루트 디렉토리의 가이드 문서를 참조하세요:
 
-- [render.md](file:///Users/guniluk/Desktop/CODING/webMobile-imessage/render.md) : **Render.com 단일 배포, Express 5 정적 서빙, 14분 Keep-Alive Cron 설정 및 트러블슈팅 가이드**
-- [clerk.md](file:///Users/guniluk/Desktop/CODING/webMobile-imessage/clerk.md) : **Clerk 인증 연동, Express 미들웨어 적용, svix 기반 MongoDB Webhook CRUD 동기화 가이드**
+- [render.md](./render.md) : **Render.com 단일 배포, Express 5 정적 서빙, 14분 Keep-Alive Cron 설정 및 트러블슈팅 가이드**
+- [clerk.md](./clerk.md) : **Clerk 인증 연동, Express 미들웨어 적용, svix 기반 MongoDB Webhook CRUD 동기화 가이드**

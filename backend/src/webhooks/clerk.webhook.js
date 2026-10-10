@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
           fullName,
           profilePic,
         },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        { new: true, upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
       console.log(`[Clerk Webhook] ✅ MongoDB sync success for user: ${updatedUser._id} (${fullName})`);
     }

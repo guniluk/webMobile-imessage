@@ -8,7 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# Environment & Secrets
 .env
+.env*
+*.env
+.env.local
+.env.*.local
+!.env.example
+
 dist
 dist-ssr
 *.local

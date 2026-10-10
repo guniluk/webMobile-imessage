@@ -10,6 +10,9 @@ cloudinary.config({
 });
 
 export const uploadFile = async (file, options = {}) => {
+  if (!file) {
+    throw new Error("File data or path is required for upload");
+  }
   const result = await cloudinary.uploader.upload(file, {
     folder: "imessage",
     resource_type: "auto", // "auto" allows automatic detection and storage of both images and videos
@@ -26,14 +29,11 @@ export const deleteFile = async (url, options = {}) => {
     const isVideo = url.includes("/video/upload/");
     const defaultResourceType = isVideo ? "video" : "image";
 
-    // URL에서 폴더명과 파일명을 분리하여 public_id 생성
-    // 예: "https://res.cloudinary.com/.../imessage/abc123xyz.jpg" -> "imessage/abc123xyz"
-    const parts = url.split("/");
-    if (parts.length < 2) return;
-    const folder = parts[parts.length - 2];
-    const filenameWithExt = parts[parts.length - 1];
-    const filename = filenameWithExt.split(".")[0];
-    const publicId = `${folder}/${filename}`;
+    // URL에서 버전 번호(v12345/)를 제외한 경로(폴더명 및 파일명) 추출
+    // 예: "https://res.cloudinary.com/.../imessage/sub/abc.123.jpg" -> "imessage/sub/abc.123"
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+    if (!match || !match[1]) return;
+    const publicId = match[1];
 
     return await cloudinary.uploader.destroy(publicId, {
       resource_type: options.resource_type || defaultResourceType,
